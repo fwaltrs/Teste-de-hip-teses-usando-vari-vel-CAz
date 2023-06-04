@@ -1,0 +1,217 @@
+
+#Gerar amostra da população x e y ------------------------------------------------------
+library(Rlab)
+
+gerar_amostra <- function(p,n,shape,rate){
+  amostra <- NULL
+  for (i in 1:n){
+    valor <- rbern(1,1-p) #prob de 1-p de obter valor 1, e prob p de obter valor 0 
+    if (valor == 1){
+      amostra[i] <- rgamma(1,shape,rate)
+    }
+    else amostra[i] <- valor
+  }
+  return(amostra)
+}
+
+
+# teste de Welch ----------------------------------------------------------
+
+valorp_teste_t <- function(x,y){
+  valorp <- t.test(x,y,alternative='two.sided')$p.value 
+  return(valorp)
+}
+
+
+# teste bootstrap 16.1 -----------------------------------------------------
+
+bootstrap_1 <- function(x,y,B){
+  amostra_combinada <- c(x,y)
+  estat_boos1 <- mean(x) - mean(y)
+  boos1 <- c()
+  for (i in 1:B){
+    obs1 <- sample(seq(1,length(amostra_combinada),1),length(amostra_combinada),replace=TRUE)
+    amostra <- amostra_combinada[obs1]
+    valor <- mean(amostra[1:length(x)]) - mean(amostra[(length(x)+1):length(amostra_combinada)])
+    boos1[i] <- abs(valor)
+  }
+  
+  valor_p <- sum(1*(boos1 > estat_boos1))/B
+  return(valor_p)
+}
+
+
+# Algoritmo 16.2 ----------------------------------------------------------
+
+bootstrap_2 <- function(x,y,B){
+  z <- c(x,y)
+  xtrans <- x - mean(x) + mean(z)
+  ytrans <- y - mean(y) + mean(z)
+  #transformando sob h0
+  
+  est_obs <- (mean(x) - mean(y))/(sqrt(var(x)/length(x) + var(y)/length(y)))
+  
+  estat_2 <- c()
+  for (i in 1:B){
+    amostra_x<-sample(seq(1,length(xtrans),1),length(xtrans),replace=TRUE)
+    amostra_y<-sample(seq(1,length(ytrans),1),length(ytrans),replace=TRUE)
+    valor <- (mean(xtrans[amostra_x]) - mean(ytrans[amostra_y]))/(sqrt(var(xtrans[amostra_x])/length(xtrans[amostra_x]) + var(ytrans[amostra_y])/length(ytrans[amostra_y])))
+    estat_2[i] <- abs(valor)
+  }
+  
+  valorp <- sum(estat_2 > est_obs)/B
+  return(valorp)
+}
+
+
+
+# Algoritmo Dwivedi -------------------------------------------------------
+
+bootstrap_3 <- function(x,y,B){
+  n <- length(x)
+  m <- length(y)
+  est_obs <- (mean(x) - mean(y))/(sqrt(var(x)/n + var(y)/m))
+  x_trans <- x - mean(x)
+  y_trans <- y - mean(y)
+  
+  estat_3 <- c()
+  for (i in 1:B){
+    amos_x <-sample(seq(1,length(x_trans),1),length(x_trans),replace=TRUE)
+    amos_y <-sample(seq(1,length(y_trans),1),length(y_trans),replace=TRUE)
+    valor <- (mean(x_trans[amos_x]) - mean(y_trans[amos_y]))/(sqrt(var(x_trans[amos_x])/length(x_trans[amos_x]) + var(y_trans[amos_y])/length(y_trans[amos_y])))
+    estat_3[i] <- valor
+  }
+  
+  valorp <- sum(estat_3 > est_obs)/B
+  return(valorp)
+  
+}
+
+
+# calcular a taxa de rejeição para caso balanceado n igual para as duas amostras --------------------------------------------
+
+
+taxa_rejeicao <- function(p,n,shape,rate,B,amostra,alpha){
+  taxa_rejeicao_t_test <- c()
+  taxa_rejeicao_boost_1 <- c()
+  taxa_rejeicao_boost_2 <- c()
+  taxa_rejeicao_boost_3 <- c()
+  
+  for (i in 1:amostra){
+    x <- gerar_amostra(p,n,shape,rate) #sob H0,mu1=mu2
+    y <- gerar_amostra(p,n,shape,rate) #sob H0,mu1=mu2
+    taxa_rejeicao_t_test[i] <- valorp_teste_t(x,y)
+    taxa_rejeicao_boost_1[i] <- bootstrap_1(x,y,B)
+    taxa_rejeicao_boost_2[i] <- bootstrap_2(x,y,B)
+    taxa_rejeicao_boost_3[i] <- bootstrap_3(x,y,B)
+  }
+  
+  alpha1 <- sum(taxa_rejeicao_t_test < alpha)/amostra
+  alpha2 <- sum(taxa_rejeicao_boost_1 < alpha)/amostra
+  alpha3 <- sum(taxa_rejeicao_boost_2 < alpha)/amostra
+  alpha4 <- sum(taxa_rejeicao_boost_3 < alpha)/amostra
+  valores_alpha <- c(alpha1,alpha2,alpha3,alpha4)
+  return(valores_alpha)
+}
+
+#p,n,shape,rate,B,amostra,alpha
+set.seed(1)
+semente <- sample(1:1000,1,replace=T)
+set.seed(semente)
+# com variancias iguais e alpha 0.01 --------------------------------------
+
+# COM VARIANCIAS IGUAIS ---------------------------------------------------
+set.seed(semente)
+t1.1 <- taxa_rejeicao(p=0.5,n=5,shape=1,rate=1/10,B=1000,amostra=5000,alpha=0.01)
+t1.1
+
+set.seed(semente)
+t2.1 <- taxa_rejeicao(p=0.5,n=10,shape=1,rate=1/10,B=1000,amostra=5000,alpha=0.01)
+t2.1
+
+
+set.seed(semente)
+t3.1 <- taxa_rejeicao(p=0.5,n=20,shape=1,rate=1/10,B=1000,amostra=5000,alpha=0.01)
+t3.1
+
+set.seed(semente)
+t4.1 <- taxa_rejeicao(p=0.5,n=30,shape=1,rate=1/10,B=1000,amostra=5000,alpha=0.01)
+t4.1
+
+
+set.seed(semente)
+t5.1 <- taxa_rejeicao(p=0.5,n=40,shape=1,rate=1/10,B=1000,amostra=5000,alpha=0.01)
+t5.1 
+
+set.seed(semente)
+t6.1 <- taxa_rejeicao(p=0.5,n=50,shape=1,rate=1/10,B=1000,amostra=5000,alpha=0.01)
+t6.1 
+
+set.seed(semente)
+t7.1 <- taxa_rejeicao(p=0.5,n=200,shape=1,rate=1/10,B=1000,amostra=5000,alpha=0.01)
+t7.1
+
+# COM VARIANCIAS IGUAIS e alpha de 0.05 ---------------------------------------------------
+set.seed(semente)
+t1 <- taxa_rejeicao(p=0.5,n=5,shape=1,rate=1/10,B=1000,amostra=5000,alpha=0.05)
+t1
+
+set.seed(semente)
+t2 <- taxa_rejeicao(p=0.5,n=10,shape=1,rate=1/10,B=1000,amostra=5000,alpha=0.05)
+t2
+
+
+set.seed(semente)
+t3 <- taxa_rejeicao(p=0.5,n=20,shape=1,rate=1/10,B=1000,amostra=5000,alpha=0.05)
+t3
+
+set.seed(semente)
+t4 <- taxa_rejeicao(p=0.5,n=30,shape=1,rate=1/10,B=1000,amostra=5000,alpha=0.05)
+t4
+
+
+set.seed(semente)
+t5 <- taxa_rejeicao(p=0.5,n=40,shape=1,rate=1/10,B=1000,amostra=5000,alpha=0.05)
+t5 
+
+set.seed(semente)
+t6 <- taxa_rejeicao(p=0.5,n=50,shape=1,rate=1/10,B=1000,amostra=5000,alpha=0.05)
+t6 
+
+set.seed(semente)
+t7 <- taxa_rejeicao(p=0.5,n=200,shape=1,rate=1/10,B=1000,amostra=5000,alpha=0.05)
+t7
+
+
+
+# com alpha de 0.1 --------------------------------------------------------
+
+set.seed(semente)
+t1.2 <- taxa_rejeicao(p=0.5,n=5,shape=1,rate=1/10,B=1000,amostra=5000,alpha=0.1)
+t1.2
+
+set.seed(semente)
+t2.2 <- taxa_rejeicao(p=0.5,n=10,shape=1,rate=1/10,B=1000,amostra=5000,alpha=0.1)
+t2.2
+
+
+set.seed(semente)
+t3.2 <- taxa_rejeicao(p=0.5,n=20,shape=1,rate=1/10,B=1000,amostra=5000,alpha=0.1)
+t3.2
+
+set.seed(semente)
+t4.2 <- taxa_rejeicao(p=0.5,n=30,shape=1,rate=1/10,B=1000,amostra=5000,alpha=0.1)
+t4.2
+
+
+set.seed(semente)
+t5.2 <- taxa_rejeicao(p=0.5,n=40,shape=1,rate=1/10,B=1000,amostra=5000,alpha=0.1)
+t5.2 
+
+set.seed(semente)
+t6.2 <- taxa_rejeicao(p=0.5,n=50,shape=1,rate=1/10,B=1000,amostra=5000,alpha=0.1)
+t6.2 
+
+set.seed(semente)
+t7.2 <- taxa_rejeicao(p=0.5,n=200,shape=1,rate=1/10,B=1000,amostra=5000,alpha=0.1)
+t7.2
