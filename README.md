@@ -1,1 +1,1 @@
-# Teste-de-hip-teses-usando-vari-vel-CAz
+# Teste-de-hipoteses-usando-variavel-zero-ajustada
